@@ -1,0 +1,758 @@
+  <div class="page-wrapper">
+  <!-- Minimalist Top Bar with Route Navigation -->
+  <header class="app-topbar">
+    <div class="topbar-content">
+      <!-- App Brand Logo (MPI Sheet) -->
+      <div class="app-brand-logo" (click)="setTab('generator')" title="MPI Sheet System">
+        <div class="mpi-logo-badge">
+          <svg class="mpi-logo-svg" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="#2563eb"/>
+            <path d="M7 9h12M7 14h18M7 19h10" stroke="#bfdbfe" stroke-width="2" stroke-linecap="round"/>
+            <rect x="15" y="17" width="14" height="11" rx="3" fill="#1e3a8a" stroke="#60a5fa" stroke-width="1.2"/>
+            <text x="22" y="25" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="6.5" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="0.3">MPI</text>
+          </svg>
+        </div>
+        <div class="brand-text-col">
+          <span class="brand-main-title">MPI Sheet</span>
+        </div>
+      </div>
+
+      <!-- Navigation Switcher: Visible in top bar -->
+      <nav class="nav-switcher" aria-label="Main Navigation">
+        <button
+          type="button"
+          class="nav-tab-btn"
+          [class.active]="activeTab() === 'generator'"
+          (click)="setTab('generator')"
+          title="Go to Sheet Generator"
+        >
+          <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span class="nav-tab-text">Sheet Generator</span>
+        </button>
+
+        <button
+          type="button"
+          class="nav-tab-btn review-nav-tab"
+          [class.active]="activeTab() === 'review'"
+          (click)="setTab('review')"
+          title="Go to Team Lead Review Workspace"
+        >
+          <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+          <span class="nav-tab-text">Team Lead Review</span>
+          @if (pendingReviewCount() > 0) {
+            <span class="nav-badge-pill" title="Pending reviews">{{ pendingReviewCount() }}</span>
+          }
+        </button>
+      </nav>
+
+      <!-- Right Action -->
+      <div class="topbar-right">
+        @if (activeTab() === 'generator') {
+          <button type="button" class="pill-btn-sm" (click)="clearForm()" title="Clear all input fields">
+            <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Reset Form</span>
+          </button>
+        } @else {
+          <div class="topbar-review-actions">
+            @if (isReviewUnlocked()) {
+              <button type="button" class="pill-btn-sm" (click)="refreshRecords()" title="Refresh records from records.json">
+                <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Refresh JSON</span>
+              </button>
+
+              <button type="button" class="pill-btn-sm lock-workspace-btn" (click)="lockReviewWorkspace()" title="Lock review workspace">
+                <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>Lock</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- VIEW 1: Sheet Generator (/) -->
+    @if (activeTab() === 'generator') {
+      <div class="mpi-card">
+        <!-- Card Title & Subtitle -->
+        <div class="card-header">
+          <div>
+            <h1 class="card-title">MPI Sheet Generator</h1>
+            <p class="card-subtitle">Generate, preview, submit, and download official monthly MPI inspection reports</p>
+          </div>
+        </div>
+
+        <!-- Top of Form: Employee Name & Editable Month/Year -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="employeeName">Employee Name</label>
+            <input
+              id="employeeName"
+              type="text"
+              class="pill-input"
+              [ngModel]="employeeName()"
+              (ngModelChange)="onEmployeeNameChange($event)"
+              placeholder="Your Name"
+            />
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label class="form-label" for="monthYear">Month & Year</label>
+              <span class="date-helper-pill" title="Editable month and year">
+                Editable
+              </span>
+            </div>
+            <input
+              id="monthYear"
+              type="text"
+              class="pill-input"
+              [ngModel]="monthYear()"
+              (ngModelChange)="onMonthYearChange($event)"
+              placeholder="e.g. NOVEMBER 2026"
+              title="Edit target month and year"
+            />
+          </div>
+        </div>
+
+        <!-- Desktop Grid Split: Points (Left 60%) and Extraordinary (Right 40%) -->
+        <div class="desktop-grid-split">
+          <!-- Main Content 1: MPI Sheet Points -->
+          <div class="form-group points-form-group">
+            <div class="label-row">
+              <label class="form-label" for="points">
+                MPI Sheet Points
+                <span class="required-dot" title="Required field"></span>
+              </label>
+              @if (pointsPageInfo().count > 0) {
+                <span class="points-badge" [class]="pointsPageInfo().badgeClass">
+                  {{ pointsPageInfo().label }}
+                </span>
+              }
+            </div>
+
+            <textarea
+              id="points"
+              class="custom-textarea points-textarea"
+              rows="10"
+              [ngModel]="points()"
+              (ngModelChange)="points.set($event)"
+              placeholder="Enter MPI sheet points here...&#10;&#10;1. Point one&#10;2. Point two&#10;3. Point three"
+            ></textarea>
+            <div class="points-capacity-hint">
+              <span>📄 2-Page Capacity: ~50–60 typical points (or ~80 short points). Page 1 holds ~25; Page 2 holds ~35.</span>
+            </div>
+          </div>
+
+          <!-- Right Column: Extraordinary -->
+          <div class="right-form-col">
+            <div class="form-group extraordinary-form-group">
+              <div class="label-row">
+                <label class="form-label" for="extraCurricularActivity">
+                  Extraordinary:
+                  <span class="required-dot" title="Required field"></span>
+                </label>
+                @if (extraCurricularActivity().trim().length > 0) {
+                  <span
+                    class="points-badge"
+                    [class.full]="isExtraLimitExceeded()"
+                    [class.page1]="!isExtraLimitExceeded()"
+                  >
+                    {{ extraWordsCount() }} / {{ maxExtraWords }} words
+                    @if (isExtraLimitExceeded()) {
+                      <span> • ⚠️ Limit Reached</span>
+                    }
+                  </span>
+                }
+              </div>
+              <textarea
+                id="extraCurricularActivity"
+                class="custom-textarea review-textarea"
+                [class.input-error-border]="isExtraLimitExceeded()"
+                rows="10"
+                [ngModel]="extraCurricularActivity()"
+                (ngModelChange)="extraCurricularActivity.set($event)"
+                placeholder="e.g. Actively participated in internal technical workshops, safety drills, and ISO quality compliance training..."
+              ></textarea>
+              <div class="points-capacity-hint" [class.hint-error]="isExtraLimitExceeded()">
+                @if (isExtraLimitExceeded()) {
+                  <span style="color: #f59e0b; font-weight: 600;">⚠️ Limit Reached: Box fits max 100 words. Please shorten.</span>
+                } @else {
+                  <span>📄 Fits in PDF box: Max 100 words.</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons Row: Preview PDF, Submit Sheet, Download PDF -->
+        <div class="button-row">
+          <!-- Preview PDF Button (Opens Modal Popup) -->
+          <button
+            type="button"
+            class="pill-btn preview-btn"
+            [disabled]="isLoadingPreview()"
+            (click)="onPreviewPdf()"
+            title="Open interactive preview popup"
+          >
+            @if (isLoadingPreview()) {
+              <span class="spinner"></span>
+              <span>Generating Preview...</span>
+            } @else {
+              <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span>Preview PDF</span>
+            }
+          </button>
+
+          <!-- Submit Sheet Button (Saves to records.json for Team Lead Review) -->
+          <button
+            type="button"
+            class="pill-btn submit-btn"
+            [disabled]="isSubmitting()"
+            (click)="onSubmitSheetForReview()"
+            title="Save sheet into records.json for Team Lead Review"
+          >
+            @if (isSubmitting()) {
+              <span class="spinner"></span>
+              <span>Submitting...</span>
+            } @else {
+              <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Submit Sheet</span>
+            }
+          </button>
+
+          <!-- Download PDF Button -->
+          <button
+            type="button"
+            class="pill-btn download-btn highlight-btn"
+            [disabled]="isLoadingPreview()"
+            (click)="onDownloadPdf()"
+            title="Directly download MPI_Sheet.pdf"
+          >
+            <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Download PDF</span>
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- VIEW 2: Team Lead Review Workspace (/review) -->
+    @if (activeTab() === 'review') {
+      @if (!isReviewUnlocked()) {
+        <!-- TOTP Gatekeeper Security Screen -->
+        <div class="totp-gatekeeper-wrapper animate-fade-in">
+          <div class="totp-gatekeeper-card">
+            <!-- Glowing Security Shield Icon -->
+            <div class="totp-icon-glow">
+              <svg class="totp-shield-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+
+            <h1 class="totp-title">Team Lead Verification</h1>
+            <p class="totp-subtitle">This workspace is restricted. Enter the 6-digit one-time code from your <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong> app.</p>
+
+            <form class="totp-form" (submit)="$event.preventDefault(); onVerifyTotp()">
+              <div class="totp-input-container">
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  maxlength="6"
+                  class="totp-input"
+                  placeholder="000000"
+                  [ngModel]="totpCode()"
+                  (ngModelChange)="totpCode.set($event)"
+                  name="totpCode"
+                  autocomplete="one-time-code"
+                  autofocus
+                />
+              </div>
+
+              @if (totpErrorMessage()) {
+                <div class="totp-error-banner animate-fade-in">
+                  <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{{ totpErrorMessage() }}</span>
+                </div>
+              }
+
+              <button
+                type="submit"
+                class="pill-btn totp-verify-btn"
+                [disabled]="isVerifyingTotp() || totpCode().trim().length < 6"
+              >
+                @if (isVerifyingTotp()) {
+                  <span class="spinner"></span>
+                  <span>Verifying Code...</span>
+                } @else {
+                  <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  </svg>
+                  <span>Verify & Unlock Workspace</span>
+                }
+              </button>
+            </form>
+
+            <!-- First-time Setup Toggle -->
+            <div class="totp-setup-toggle">
+              <button
+                type="button"
+                class="totp-setup-link"
+                (click)="toggleTotpSetupGuide()"
+              >
+                <span>🔑 {{ showTotpSetupGuide() ? 'Hide Setup Details' : 'First time? View Authenticator Setup Key' }}</span>
+              </button>
+            </div>
+
+            @if (showTotpSetupGuide()) {
+              <div class="totp-setup-box animate-fade-in">
+                <h3 class="setup-box-title">Authenticator App Setup</h3>
+                <p class="setup-box-desc">Add this key to Google Authenticator or Microsoft Authenticator on your mobile device:</p>
+
+                <div class="secret-key-badge-row">
+                  <code class="secret-key-display">{{ totpSecretKey }}</code>
+                  <button type="button" class="copy-secret-btn" (click)="copyTotpSecret()" title="Copy setup key">
+                    Copy Key
+                  </button>
+                </div>
+
+                <ol class="setup-steps-list">
+                  <li>Open <strong>Google Authenticator</strong> (or Microsoft Authenticator).</li>
+                  <li>Tap <strong>+</strong> and select <strong>Enter a setup key</strong>.</li>
+                  <li>Account name: <code>MPI Sheet - Team Lead</code></li>
+                  <li>Your key: <code>{{ totpSecretKey }}</code></li>
+                  <li>Type of key: <strong>Time-based</strong> (default).</li>
+                  <li>Enter the 6-digit code shown in the app above to unlock.</li>
+                </ol>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="mpi-card review-workspace-card">
+        <div class="card-header">
+          <div>
+            <h1 class="card-title">Team Lead Review Workspace</h1>
+            <p class="card-subtitle">Review employee monthly sheets, assign performance ratings, and update inspection records in records.json</p>
+          </div>
+        </div>
+
+        <!-- Summary Stats Cards -->
+        <div class="review-stats-grid">
+          <div class="stat-card">
+            <div class="stat-num">{{ recordsList().length }}</div>
+            <div class="stat-label">Total Submissions</div>
+          </div>
+          <div class="stat-card stat-pending">
+            <div class="stat-num">{{ pendingReviewCount() }}</div>
+            <div class="stat-label">Pending Reviews</div>
+          </div>
+          <div class="stat-card stat-reviewed">
+            <div class="stat-num">{{ reviewedCount() }}</div>
+            <div class="stat-label">Reviewed & Approved</div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="review-filter-bar">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              class="filter-search-input"
+              placeholder="Search by employee name..."
+              [ngModel]="reviewSearchTerm()"
+              (ngModelChange)="reviewSearchTerm.set($event)"
+            />
+          </div>
+
+          <div class="filter-controls">
+            <select
+              class="filter-select"
+              [ngModel]="reviewMonthFilter()"
+              (ngModelChange)="reviewMonthFilter.set($event)"
+              title="Filter by Month"
+            >
+              <option value="ALL">All Months</option>
+              @for (m of availableMonths(); track m) {
+                <option [value]="m">{{ m }}</option>
+              }
+            </select>
+
+            <select
+              class="filter-select"
+              [ngModel]="reviewStatusFilter()"
+              (ngModelChange)="reviewStatusFilter.set($event)"
+              title="Filter by Status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="Pending">Pending Review</option>
+              <option value="Reviewed">Reviewed</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Master Records Table -->
+        @if (filteredRecords().length === 0) {
+          <div class="empty-records-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">No submissions found</div>
+            <div class="empty-state-desc">No employee records match the filter. Submit sheets in the Generator to see them here.</div>
+          </div>
+        } @else {
+          <div class="records-table-container">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>
+                  <th>Month & Year</th>
+                  <th>Status</th>
+                  <th>Rating</th>
+                  <th>Last Updated</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (rec of filteredRecords(); track (rec.employeeName + '-' + rec.monthYear)) {
+                  <tr [class.selected-row]="selectedRecord()?.employeeName === rec.employeeName && selectedRecord()?.monthYear === rec.monthYear">
+                    <td class="emp-name-cell">
+                      <span class="emp-avatar">{{ rec.employeeName.charAt(0).toUpperCase() }}</span>
+                      <span class="emp-name-text">{{ rec.employeeName }}</span>
+                    </td>
+                    <td>
+                      <span class="period-badge">{{ rec.monthYear }}</span>
+                    </td>
+                    <td>
+                      @if (rec.status === 'Reviewed') {
+                        <span class="badge-status badge-reviewed">Reviewed</span>
+                      } @else {
+                        <span class="badge-status badge-pending">Pending Review</span>
+                      }
+                    </td>
+                    <td>
+                      @if (rec.teamLeadRating !== null && rec.teamLeadRating !== undefined) {
+                        <span class="rating-badge-pill">★ {{ rec.teamLeadRating }}/10</span>
+                      } @else {
+                        <span class="unrated-pill">Unrated</span>
+                      }
+                    </td>
+                    <td class="timestamp-cell">
+                      {{ rec.updatedAt ? (rec.updatedAt | date:'mediumDate') : '-' }}
+                    </td>
+                    <td class="text-right action-cell">
+                      <button
+                        type="button"
+                        class="review-action-btn"
+                        (click)="selectRecordForReview(rec)"
+                        title="Review and rate this sheet"
+                      >
+                        <span>Review / Rate</span>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <!-- Review & Rating Drawer / Modal when a record is selected -->
+      @if (selectedRecord()) {
+        <div class="review-modal-backdrop animate-fade-in" (click)="closeRecordReview()">
+          <div class="review-drawer-dialog" (click)="$event.stopPropagation()">
+            <div class="drawer-header">
+              <div class="drawer-header-info">
+                <span class="drawer-title">Reviewing: {{ selectedRecord()?.employeeName }}</span>
+                <span class="period-badge">{{ selectedRecord()?.monthYear }}</span>
+              </div>
+              <button type="button" class="drawer-close-btn" (click)="closeRecordReview()" title="Close review">
+                ✕
+              </button>
+            </div>
+
+            <div class="drawer-body">
+              <!-- 1. Submitted Points (Read-only Inspection) -->
+              <div class="review-section-box">
+                <div class="box-header-title">1. Submitted Points</div>
+                <div class="submitted-points-content">
+                  @for (pt of (selectedRecord()?.points || '').split('\n'); track $index) {
+                    @if (pt.trim()) {
+                      <div class="submitted-pt-row">
+                        <span class="bullet">•</span>
+                        <span>{{ cleanPointText(pt) }}</span>
+                      </div>
+                    }
+                  }
+                </div>
+              </div>
+
+              <!-- 2. Extraordinary Contributions -->
+              @if (selectedRecord()?.extraCurricularActivity?.trim()) {
+                <div class="review-section-box">
+                  <div class="box-header-title">2. Extraordinary</div>
+                  <div class="submitted-extra-content">
+                    {{ selectedRecord()?.extraCurricularActivity }}
+                  </div>
+                </div>
+              }
+
+              <!-- 3. Team Lead Review & Rating (EDITABLE) -->
+              <div class="review-section-box lead-review-edit-box">
+                <div class="box-header-title">
+                  <span>3. Team Lead Review & Performance Rating</span>
+                  <span class="badge-role">Team Lead</span>
+                </div>
+
+                <!-- Rating Selector -->
+                <div class="rating-selector-group">
+                  <label class="rating-label">Performance Rating (/10):</label>
+                  <div class="score-pills">
+                    @for (score of [1,2,3,4,5,6,7,8,9,10]; track score) {
+                      <button
+                        type="button"
+                        class="score-pill"
+                        [class.active]="reviewEditingLeadRating() === score"
+                        (click)="setLeadRating(score)"
+                      >
+                        {{ score }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <!-- Review Comments -->
+                <div class="form-group">
+                  <label class="form-label" for="leadComments">Team Lead Review Comments / Notes:</label>
+                  <textarea
+                    id="leadComments"
+                    class="custom-textarea"
+                    rows="4"
+                    [ngModel]="reviewEditingLeadComments()"
+                    (ngModelChange)="reviewEditingLeadComments.set($event)"
+                    placeholder="Enter evaluation, highlights, and feedback for the employee..."
+                  ></textarea>
+                </div>
+
+                <!-- Status Toggle -->
+                <div class="form-group status-toggle-row">
+                  <label class="form-label" for="reviewStatusSelect">Approval Status:</label>
+                  <select
+                    id="reviewStatusSelect"
+                    class="filter-select"
+                    [ngModel]="reviewEditingStatus()"
+                    (ngModelChange)="reviewEditingStatus.set($event)"
+                  >
+                    <option value="Reviewed">Reviewed & Approved</option>
+                    <option value="Pending">Pending Review</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="drawer-footer">
+              <button
+                type="button"
+                class="pill-btn save-review-btn"
+                [disabled]="isSavingReview()"
+                (click)="saveTeamLeadReview()"
+                title="Save review changes to records.json"
+              >
+                @if (isSavingReview()) {
+                  <span class="spinner"></span>
+                  <span>Saving to JSON...</span>
+                } @else {
+                  <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  <span>Save Review to JSON</span>
+                }
+              </button>
+
+              <button
+                type="button"
+                class="pill-btn preview-record-btn"
+                (click)="previewRecordPdf(selectedRecord()!)"
+                title="Preview reviewed PDF"
+              >
+                <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span>Preview PDF</span>
+              </button>
+
+              <button
+                type="button"
+                class="pill-btn download-record-btn highlight-btn"
+                (click)="downloadRecordPdf(selectedRecord()!)"
+                title="Download finalized official PDF"
+              >
+                <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+      }
+    }
+  </main>
+
+  <!-- PDF Preview Modal Popup -->
+  @if (isPreviewModalOpen()) {
+    <div class="modal-backdrop animate-fade-in" (click)="closePreviewModal()">
+      <div class="preview-modal-dialog" (click)="$event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="preview-modal-header">
+          <div class="modal-header-left">
+            <div class="pdf-icon-badge" title="PDF Document">
+              <svg class="pdf-svg-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
+                <text x="7" y="16.5" font-family="Arial, sans-serif" font-size="5.5" font-weight="900" fill="#ffffff">PDF</text>
+              </svg>
+            </div>
+            <div>
+              <div class="modal-doc-title">MPI_Sheet.pdf</div>
+              <div class="modal-doc-subtitle">
+                <span>{{ currentMonthYearDisplay() }}</span>
+                @if (pdfFileSize()) {
+                  <span class="dot-separator">•</span>
+                  <span>{{ pdfFileSize() }}</span>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- PDF Preview Indicator -->
+          <div class="mode-toggle-group">
+            <div class="mode-toggle-btn active" title="Official PDF Preview">
+              <span class="btn-label-desktop">📑 PDF Preview</span>
+              <span class="btn-label-mobile">PDF</span>
+            </div>
+          </div>
+
+          <!-- Header Actions: Download, Close -->
+          <div class="modal-header-actions">
+            <button
+              type="button"
+              class="modal-action-btn download-action-btn"
+              (click)="onDownloadPdf()"
+              title="Download MPI_Sheet.pdf"
+            >
+              <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span class="download-label-text">Download</span>
+            </button>
+
+            <button
+              type="button"
+              class="modal-close-btn"
+              (click)="closePreviewModal()"
+              title="Close preview (Esc)"
+              aria-label="Close"
+            >
+              <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal Body (Direct PDF Document Preview) -->
+        <div class="preview-modal-body">
+          @if (pdfSafeUrl()) {
+            <object
+              [data]="pdfSafeUrl()"
+              type="application/pdf"
+              class="pdf-iframe modal-pdf-iframe"
+              title="MPI Sheet Generated PDF Preview"
+            >
+              <embed
+                [src]="pdfSafeUrl()"
+                type="application/pdf"
+                class="pdf-iframe modal-pdf-iframe"
+              />
+            </object>
+          } @else {
+            <div class="pdf-loading-state">
+              <span class="spinner"></span>
+              <span>Loading PDF Document...</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Toast Notification System -->
+  <div class="toast-stack" aria-live="polite">
+    @for (toast of toasts(); track toast.id) {
+      <div
+        class="toast-card animate-fade-in"
+        [class.toast-success]="toast.type === 'success'"
+        [class.toast-error]="toast.type === 'error'"
+        [class.toast-info]="toast.type === 'info'"
+        [class.toast-warning]="toast.type === 'warning'"
+      >
+        <div class="toast-icon">
+          @if (toast.type === 'success') {
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          } @else if (toast.type === 'error') {
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          } @else if (toast.type === 'warning') {
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          } @else {
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          }
+        </div>
+        <div class="toast-content">
+          <div class="toast-title">{{ toast.title }}</div>
+          <div class="toast-message">{{ toast.message }}</div>
+        </div>
+        <button
+          type="button"
+          class="toast-close"
+          (click)="removeToast(toast.id)"
+          aria-label="Dismiss notification"
+        >
+          &times;
+        </button>
+      </div>
+    }
+  </div>
+</div>
