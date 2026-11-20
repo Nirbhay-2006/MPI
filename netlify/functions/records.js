@@ -85,7 +85,11 @@ exports.handler = async function (event, context) {
     inMemoryRecords = records;
     if (store) {
       try {
-        await store.setJSON('records', records);
+        if (typeof store.setJSON === 'function') {
+          await store.setJSON('records', records);
+        } else {
+          await store.set('records', JSON.stringify(records));
+        }
       } catch (e) {
         console.warn('[Netlify Function] Blobs write error:', e.message);
       }

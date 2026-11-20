@@ -357,6 +357,28 @@
             <h1 class="card-title">Team Lead Review Workspace</h1>
             <p class="card-subtitle">Review employee monthly sheets, assign performance ratings, and update inspection records in records.json</p>
           </div>
+          <div class="header-actions">
+            <button
+              type="button"
+              class="data-btn"
+              (click)="refreshRecords()"
+              title="Sync latest records from server"
+            >
+              <span>🔄 Sync</span>
+            </button>
+            <button
+              type="button"
+              class="data-btn"
+              (click)="exportRecordsJson()"
+              title="Download records.json backup file"
+            >
+              <span>💾 Export JSON</span>
+            </button>
+            <label class="data-btn data-btn-primary" title="Import records from records.json">
+              <span>📥 Import JSON</span>
+              <input type="file" accept=".json,application/json" (change)="importRecordsFromJsonFile($event)" style="display: none;" />
+            </label>
+          </div>
         </div>
 
         <!-- Summary Stats Cards -->
@@ -723,6 +745,28 @@
             <div>
               <h1 class="card-title">HR Performance Review Portal</h1>
               <p class="card-subtitle">Review employee submissions and Team Lead evaluations, assign HR ratings, and finalize monthly MPI inspection records</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="data-btn"
+                (click)="refreshRecords()"
+                title="Sync latest records from server"
+              >
+                <span>🔄 Sync</span>
+              </button>
+              <button
+                type="button"
+                class="data-btn"
+                (click)="exportRecordsJson()"
+                title="Download records.json backup file"
+              >
+                <span>💾 Export JSON</span>
+              </button>
+              <label class="data-btn data-btn-primary" title="Import records from records.json">
+                <span>📥 Import JSON</span>
+                <input type="file" accept=".json,application/json" (change)="importRecordsFromJsonFile($event)" style="display: none;" />
+              </label>
             </div>
           </div>
 

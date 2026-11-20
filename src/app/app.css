@@ -133,6 +133,49 @@
   letter-spacing: -0.1px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.data-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #e2e8f0;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  text-decoration: none;
+}
+
+.data-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+.data-btn-primary {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #93c5fd;
+}
+
+.data-btn-primary:hover {
+  background: rgba(37, 99, 235, 0.35);
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+
 /* Form Groups & Inputs */
 .form-row-2 {
   display: grid;

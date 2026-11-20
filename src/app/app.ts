@@ -693,6 +693,41 @@ export class App implements OnDestroy {
     });
   }
 
+  exportRecordsJson(): void {
+    const jsonStr = this.recordsService.exportRecordsJson();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'records.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    this.addToast('success', 'Records Exported', 'Downloaded records.json backup file');
+  }
+
+  importRecordsFromJsonFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result as string;
+        const res = this.recordsService.importRecords(text);
+        if (res.success) {
+          this.addToast('success', 'Records Imported', `Successfully imported ${res.count} record(s) from ${file.name}`);
+        } else {
+          this.addToast('error', 'Import Failed', res.error || 'Invalid file format');
+        }
+      } catch (err: any) {
+        this.addToast('error', 'Import Error', err.message);
+      } finally {
+        input.value = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
   // --- Standard Actions ---
   onPreviewPdf(): void {
     if (!this.validatePreview()) {

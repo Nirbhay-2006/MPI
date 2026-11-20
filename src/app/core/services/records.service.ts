@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, from, map, of, tap } from 'rxjs';
+import { Observable, catchError, forkJoin, from, map, of, tap } from 'rxjs';
 import { RecordsDatabase, SheetRecord } from '../models/mpi.models';
 
 const STORAGE_KEY = 'mpi_records_cache';
@@ -206,7 +206,8 @@ export class RecordsService {
   }
 
   /**
-   * Refreshes records from /api/records or Netlify Functions direct endpoint or fallback static /records.json
+   * Refreshes records by querying both static /records.json and backend endpoints (/api/records or Netlify function),
+   * smart-merging all sources with local cache so that sheet data is permanently kept and visible across systems.
    */
   refreshRecords(): Observable<RecordsDatabase> {
     this.isLoading.set(true);
@@ -222,57 +223,112 @@ export class RecordsService {
     const fnUrl = `${window.location.origin}/.netlify/functions/records`;
     const jsonUrl = `${window.location.origin}/records.json`;
 
-    // Try /api/records first (native Vercel), then Netlify direct function, then static records.json
-    return this.http.get<{ success?: boolean; data?: RecordsDatabase }>(apiUrl).pipe(
+    // 1. Static records.json (bundled with repo/deployment)
+    const fetchStatic$ = this.http.get<RecordsDatabase>(jsonUrl).pipe(
+      catchError(() => of({} as RecordsDatabase))
+    );
+
+    // 2. Serverless dynamic endpoint (Vercel API or Netlify function)
+    const fetchBackend$ = this.http.get<{ success?: boolean; data?: RecordsDatabase }>(apiUrl).pipe(
       map(res => (res && res.data) ? res.data : (res as unknown as RecordsDatabase)),
       catchError(() => {
         return this.http.get<{ success?: boolean; data?: RecordsDatabase }>(fnUrl).pipe(
           map(res => (res && res.data) ? res.data : (res as unknown as RecordsDatabase)),
-          catchError(() => {
-            return this.http.get<RecordsDatabase>(jsonUrl).pipe(
-              catchError(() => of(this.records()))
-            );
-          })
+          catchError(() => of({} as RecordsDatabase))
         );
-      }),
-      tap(loaded => {
-        if (!loaded || typeof loaded !== 'object') {
-          this.isLoading.set(false);
-          return;
-        }
+      })
+    );
 
-        // SMART MERGE: Local state takes precedence if it has a newer or equal updatedAt timestamp!
+    return forkJoin({ staticData: fetchStatic$, backendData: fetchBackend$ }).pipe(
+      tap(({ staticData, backendData }) => {
         const currentDb = { ...this.records() };
         if (currentDb['Alex Johnson']) {
           delete currentDb['Alex Johnson'];
         }
 
-        for (const emp of Object.keys(loaded)) {
-          if (!currentDb[emp]) {
-            currentDb[emp] = {};
-          }
-          for (const mYear of Object.keys(loaded[emp] || {})) {
-            const incoming = loaded[emp][mYear];
-            const existing = currentDb[emp][mYear];
+        const mergeSource = (source: RecordsDatabase) => {
+          if (!source || typeof source !== 'object') return;
+          for (const emp of Object.keys(source)) {
+            if (emp === 'Alex Johnson') continue;
+            if (!currentDb[emp]) {
+              currentDb[emp] = {};
+            }
+            for (const mYear of Object.keys(source[emp] || {})) {
+              const incoming = source[emp][mYear];
+              const existing = currentDb[emp][mYear];
 
-            if (!existing) {
-              currentDb[emp][mYear] = incoming;
-            } else {
-              const timeIncoming = incoming.updatedAt ? new Date(incoming.updatedAt).getTime() : 0;
-              const timeExisting = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
-              // Keep newer record
-              if (timeIncoming > timeExisting) {
+              if (!existing) {
                 currentDb[emp][mYear] = incoming;
+              } else {
+                const timeIncoming = incoming.updatedAt ? new Date(incoming.updatedAt).getTime() : 0;
+                const timeExisting = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+                // Keep newer record
+                if (timeIncoming >= timeExisting) {
+                  currentDb[emp][mYear] = incoming;
+                }
               }
             }
           }
-        }
+        };
+
+        mergeSource(staticData);
+        mergeSource(backendData);
 
         this.records.set(currentDb);
         this.saveToLocalCache(currentDb);
         this.isLoading.set(false);
+      }),
+      map(() => this.records()),
+      catchError(err => {
+        this.isLoading.set(false);
+        this.lastError.set(err?.message || 'Failed to refresh records');
+        return of(this.records());
       })
     );
+  }
+
+  /**
+   * Imports records from raw JSON text or RecordsDatabase,
+   * merges into local database, saves to cache, and syncs to backend.
+   */
+  importRecords(raw: string | RecordsDatabase): { success: boolean; count: number; error?: string } {
+    try {
+      const data: RecordsDatabase = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!data || typeof data !== 'object') {
+        return { success: false, count: 0, error: 'Invalid JSON format' };
+      }
+
+      const currentDb = { ...this.records() };
+      let count = 0;
+
+      for (const emp of Object.keys(data)) {
+        if (!currentDb[emp]) {
+          currentDb[emp] = {};
+        }
+        for (const mYear of Object.keys(data[emp] || {})) {
+          const incoming = data[emp][mYear];
+          if (incoming && incoming.employeeName && incoming.monthYear) {
+            currentDb[emp][mYear] = incoming;
+            count++;
+            // Try saving to backend asynchronously
+            this.saveRecord(incoming).subscribe({ error: () => {} });
+          }
+        }
+      }
+
+      this.records.set(currentDb);
+      this.saveToLocalCache(currentDb);
+      return { success: true, count };
+    } catch (e: any) {
+      return { success: false, count: 0, error: e?.message || 'Failed to parse JSON file' };
+    }
+  }
+
+  /**
+   * Serializes current in-memory database to formatted JSON string
+   */
+  exportRecordsJson(): string {
+    return JSON.stringify(this.records(), null, 2);
   }
 
   /**
