@@ -24,7 +24,7 @@ export interface SheetRecord {
   teamLeadRating?: number | null;
   hrReview?: string;
   hrRating?: number | null;
-  status: 'Pending' | 'Reviewed';
+  status: 'Pending' | 'TL_Reviewed' | 'Reviewed';
   updatedAt?: string;
 }
 

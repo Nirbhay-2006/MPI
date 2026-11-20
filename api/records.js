@@ -36,34 +36,7 @@ function verifyTOTP(token, secretBase32) {
   return false;
 }
 
-let inMemoryRecords = {
-  "Alex Johnson": {
-    "OCTOBER 2026": {
-      "employeeName": "Alex Johnson",
-      "monthYear": "OCTOBER 2026",
-      "points": "1. Completed OAuth2 Authentication integration for mobile app\n2. Resolved 14 High Priority Jira defects in Payment processing\n3. Optimized SQL index queries reducing API latency by 45%\n4. Mentored 2 Junior Engineers during sprint onboarding",
-      "extraCurricularActivity": "Organized team Tech-Talk on Angular Signals and Modern State Management",
-      "teamLeadReview": "Outstanding technical performance and initiative across all sprint objectives.",
-      "teamLeadRating": 9,
-      "hrReview": "Demonstrates strong company culture, collaboration, and reliability.",
-      "hrRating": 9,
-      "status": "Reviewed",
-      "updatedAt": "2026-10-31T17:30:00.000Z"
-    },
-    "NOVEMBER 2026": {
-      "employeeName": "Alex Johnson",
-      "monthYear": "NOVEMBER 2026",
-      "points": "1. Migrated Angular legacy forms to Typed Reactive signals\n2. Configured CI/CD automated pipeline for Vercel deployment\n3. Authored end-to-end integration test suites with Puppeteer",
-      "extraCurricularActivity": "Participated in quarterly Hackathon and created team utility toolkit",
-      "teamLeadReview": "",
-      "teamLeadRating": null,
-      "hrReview": "",
-      "hrRating": null,
-      "status": "Pending",
-      "updatedAt": "2026-11-19T09:00:00.000Z"
-    }
-  }
-};
+let inMemoryRecords = {};
 
 async function loadRecords() {
   if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
@@ -127,12 +100,16 @@ async function handleLambda(event) {
 
       if (payload.action === 'verify_totp') {
         const code = (payload.code || '').replace(/\D/g, '');
-        const secret = process.env.TOTP_SECRET || 'MPSR2236TLREVKEY';
+        const role = (payload.role || 'tl').toLowerCase();
+        let secret = process.env.TOTP_SECRET || 'MPSR2236TLREVKEY';
+        if (role === 'hr') {
+          secret = process.env.HR_TOTP_SECRET || 'MPIHR22367REVKEY';
+        }
         const isValid = verifyTOTP(code, secret);
         if (isValid) {
-          return { statusCode: 200, headers, body: JSON.stringify({ success: true, verified: true, message: 'TOTP Verification successful.' }) };
+          return { statusCode: 200, headers, body: JSON.stringify({ success: true, verified: true, role, message: `${role === 'hr' ? 'HR' : 'Team Lead'} TOTP Verification successful.` }) };
         } else {
-          return { statusCode: 401, headers, body: JSON.stringify({ success: false, verified: false, error: 'Invalid 6-digit code. Please verify against your Google Authenticator or Microsoft Authenticator app.' }) };
+          return { statusCode: 401, headers, body: JSON.stringify({ success: false, verified: false, error: `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code. Please verify against your Authenticator app.` }) };
         }
       }
 
@@ -157,7 +134,7 @@ async function handleLambda(event) {
         teamLeadRating: payload.teamLeadRating !== undefined ? payload.teamLeadRating : (existing.teamLeadRating ?? null),
         hrReview: payload.hrReview !== undefined ? payload.hrReview : (existing.hrReview || ''),
         hrRating: payload.hrRating !== undefined ? payload.hrRating : (existing.hrRating ?? null),
-        status: payload.status || 'Reviewed',
+        status: payload.status !== undefined ? payload.status : (existing.status || 'Pending'),
         updatedAt: payload.updatedAt || new Date().toISOString()
       };
 

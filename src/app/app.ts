@@ -18,8 +18,8 @@ export class App implements OnDestroy {
   private readonly recordsService = inject(RecordsService);
   private readonly sanitizer = inject(DomSanitizer);
 
-  // Active View Tab: 'generator' (/) or 'review' (/review)
-  readonly activeTab = signal<'generator' | 'review'>('generator');
+  // Active View Tab: 'generator' (/), 'review' (/review), or 'hr' (/hr)
+  readonly activeTab = signal<'generator' | 'review' | 'hr'>('generator');
 
   // Form Fields matching MPISheetRequest
   readonly fromEmail = signal<string>('');
@@ -44,6 +44,7 @@ export class App implements OnDestroy {
   readonly isLoadingPreview = signal<boolean>(false);
   readonly isSubmitting = signal<boolean>(false);
   readonly isSavingReview = signal<boolean>(false);
+  readonly isSavingHrReview = signal<boolean>(false);
 
   // PDF Preview State
   readonly isPreviewModalOpen = signal<boolean>(false);
@@ -61,7 +62,7 @@ export class App implements OnDestroy {
   // --- Team Lead Review Workspace Signals ---
   readonly reviewSearchTerm = signal<string>('');
   readonly reviewMonthFilter = signal<string>('ALL');
-  readonly reviewStatusFilter = signal<'ALL' | 'Pending' | 'Reviewed'>('ALL');
+  readonly reviewStatusFilter = signal<'ALL' | 'Pending' | 'TL_Reviewed' | 'Reviewed'>('ALL');
   readonly selectedRecord = signal<SheetRecord | null>(null);
 
   // Editing state inside Team Lead review drawer
@@ -69,9 +70,9 @@ export class App implements OnDestroy {
   readonly reviewEditingLeadRating = signal<number | null>(null);
   readonly reviewEditingHrComments = signal<string>('');
   readonly reviewEditingHrRating = signal<number | null>(null);
-  readonly reviewEditingStatus = signal<'Pending' | 'Reviewed'>('Reviewed');
+  readonly reviewEditingStatus = signal<'Pending' | 'TL_Reviewed' | 'Reviewed'>('TL_Reviewed');
 
-  // --- TOTP Verification Signals ---
+  // --- Team Lead TOTP Verification Signals ---
   readonly isReviewUnlocked = signal<boolean>(false);
   readonly totpCode = signal<string>('');
   readonly isVerifyingTotp = signal<boolean>(false);
@@ -79,21 +80,49 @@ export class App implements OnDestroy {
   readonly showTotpSetupGuide = signal<boolean>(false);
   readonly totpSecretKey = 'MPSR2236TLREVKEY';
 
+  // --- HR Review Workspace Signals ---
+  readonly hrSearchTerm = signal<string>('');
+  readonly hrMonthFilter = signal<string>('ALL');
+  readonly hrStatusFilter = signal<'ALL' | 'TL_Reviewed' | 'Pending' | 'Reviewed'>('ALL');
+  readonly selectedHrRecord = signal<SheetRecord | null>(null);
+
+  // Editing state inside HR review drawer
+  readonly hrEditingComments = signal<string>('');
+  readonly hrEditingRating = signal<number | null>(null);
+  readonly hrEditingStatus = signal<'TL_Reviewed' | 'Reviewed'>('Reviewed');
+
+  // --- HR TOTP Verification Signals ---
+  readonly isHrUnlocked = signal<boolean>(false);
+  readonly hrTotpCode = signal<string>('');
+  readonly isVerifyingHrTotp = signal<boolean>(false);
+  readonly hrTotpErrorMessage = signal<string | null>(null);
+  readonly showHrTotpSetupGuide = signal<boolean>(false);
+  readonly hrTotpSecretKey = 'MPIHR22367REVKEY';
+
   constructor() {
     this.subject.set(this.getComputedSubject());
 
-    // Check initial URL route (/review or #/review)
+    // Restore saved session authentication if available
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (window.sessionStorage.getItem('mpi_review_unlocked') === 'true') {
+        this.isReviewUnlocked.set(true);
+      }
+      if (window.sessionStorage.getItem('mpi_hr_unlocked') === 'true') {
+        this.isHrUnlocked.set(true);
+      }
+    }
+
+    // Check initial URL route (/review or /hr or #/review or #/hr)
     if (typeof window !== 'undefined') {
       const checkRoute = () => {
         const p = (window.location.pathname || '').toLowerCase();
         const h = (window.location.hash || '').toLowerCase();
-        if (p.startsWith('/review') || h.includes('review')) {
+        if (p.startsWith('/hr') || h.includes('hr')) {
+          this.activeTab.set('hr');
+        } else if (p.startsWith('/review') || h.includes('review')) {
           this.activeTab.set('review');
         } else {
           this.activeTab.set('generator');
-          this.isReviewUnlocked.set(false);
-          this.totpCode.set('');
-          this.totpErrorMessage.set(null);
         }
       };
 
@@ -216,8 +245,17 @@ export class App implements OnDestroy {
     return this.recordsList().filter(r => r.status === 'Pending').length;
   });
 
+  readonly tlReviewedCount = computed(() => {
+    return this.recordsList().filter(r => r.status === 'TL_Reviewed').length;
+  });
+
   readonly reviewedCount = computed(() => {
     return this.recordsList().filter(r => r.status === 'Reviewed').length;
+  });
+
+  readonly pendingHrReviewCount = computed(() => {
+    // Records ready for HR review: either status is TL_Reviewed, or has TL rating and not yet finalized
+    return this.recordsList().filter(r => r.status === 'TL_Reviewed' || (!!r.teamLeadRating && r.status !== 'Reviewed')).length;
   });
 
   readonly filteredRecords = computed(() => {
@@ -234,21 +272,33 @@ export class App implements OnDestroy {
     });
   });
 
+  readonly filteredHrRecords = computed(() => {
+    const all = this.recordsList();
+    const search = this.hrSearchTerm().trim().toLowerCase();
+    const month = this.hrMonthFilter();
+    const status = this.hrStatusFilter();
+
+    return all.filter(r => {
+      const matchSearch = !search || r.employeeName.toLowerCase().includes(search) || r.points.toLowerCase().includes(search);
+      const matchMonth = month === 'ALL' || r.monthYear === month;
+      const matchStatus = status === 'ALL' || r.status === status;
+      return matchSearch && matchMonth && matchStatus;
+    });
+  });
+
   // --- Navigation Switcher ---
-  setTab(tab: 'generator' | 'review'): void {
+  setTab(tab: 'generator' | 'review' | 'hr'): void {
     this.activeTab.set(tab);
-    if (tab === 'generator') {
-      this.isReviewUnlocked.set(false);
-      this.totpCode.set('');
-      this.totpErrorMessage.set(null);
-    }
     if (typeof window !== 'undefined' && window.history) {
-      const targetUrl = tab === 'review' ? '/review' : '/';
+      const targetUrl = tab === 'hr' ? '/hr' : (tab === 'review' ? '/review' : '/');
       if (window.location.pathname !== targetUrl) {
         window.history.pushState(null, '', targetUrl);
       }
     }
     if (tab === 'review' && this.isReviewUnlocked()) {
+      this.recordsService.refreshRecords().subscribe();
+    }
+    if (tab === 'hr' && this.isHrUnlocked()) {
       this.recordsService.refreshRecords().subscribe();
     }
   }
@@ -412,13 +462,16 @@ export class App implements OnDestroy {
 
     this.isSavingReview.set(true);
 
+    // If HR already reviewed, keep 'Reviewed'; otherwise transition to 'TL_Reviewed' so HR can take over
+    const newStatus = (current.hrReview && current.hrRating !== null) ? 'Reviewed' : 'TL_Reviewed';
+
     const updatedRecord: SheetRecord = {
       ...current,
       teamLeadReview: this.reviewEditingLeadComments().trim(),
       teamLeadRating: this.reviewEditingLeadRating(),
-      hrReview: this.reviewEditingHrComments().trim(),
-      hrRating: this.reviewEditingHrRating(),
-      status: 'Reviewed',
+      hrReview: current.hrReview || '',
+      hrRating: current.hrRating ?? null,
+      status: newStatus,
       updatedAt: new Date().toISOString()
     };
 
@@ -428,8 +481,8 @@ export class App implements OnDestroy {
         this.closeRecordReview();
         this.addToast(
           'success',
-          'Review Saved to JSON!',
-          `Updated records.json for ${saved.employeeName} (${saved.monthYear}) with rating ${saved.teamLeadRating ?? '-'}/10.`
+          'Team Lead Review Saved!',
+          `Updated record for ${saved.employeeName} (${saved.monthYear}) with rating ${saved.teamLeadRating ?? '-'}/10. Forwarded to HR review.`
         );
       },
       error: (err: Error) => {
@@ -437,6 +490,113 @@ export class App implements OnDestroy {
         this.addToast('error', 'Save Failed', err.message);
       }
     });
+  }
+
+  // --- HR Review Actions ---
+  selectRecordForHrReview(record: SheetRecord): void {
+    this.selectedHrRecord.set(record);
+    this.hrEditingComments.set(record.hrReview || '');
+    this.hrEditingRating.set(record.hrRating ?? null);
+    this.hrEditingStatus.set('Reviewed');
+  }
+
+  closeHrRecordReview(): void {
+    this.selectedHrRecord.set(null);
+  }
+
+  setHrRating(rating: number): void {
+    this.hrEditingRating.set(rating);
+  }
+
+  saveHrReview(): void {
+    const current = this.selectedHrRecord();
+    if (!current) return;
+
+    this.isSavingHrReview.set(true);
+
+    const updatedRecord: SheetRecord = {
+      ...current,
+      hrReview: this.hrEditingComments().trim(),
+      hrRating: this.hrEditingRating(),
+      status: this.hrEditingStatus() || 'Reviewed',
+      updatedAt: new Date().toISOString()
+    };
+
+    this.recordsService.saveRecord(updatedRecord).subscribe({
+      next: (saved) => {
+        this.isSavingHrReview.set(false);
+        this.closeHrRecordReview();
+        this.addToast(
+          'success',
+          'HR Review Finalized!',
+          `Updated record for ${saved.employeeName} (${saved.monthYear}) with HR rating ${saved.hrRating ?? '-'}/10.`
+        );
+      },
+      error: (err: Error) => {
+        this.isSavingHrReview.set(false);
+        this.addToast('error', 'Save Failed', err.message);
+      }
+    });
+  }
+
+  // --- HR TOTP Authentication Actions ---
+  onVerifyHrTotp(): void {
+    const code = this.hrTotpCode().trim().replace(/\D/g, '');
+    if (code.length !== 6) {
+      this.hrTotpErrorMessage.set('Please enter the full 6-digit HR code from your authenticator app.');
+      return;
+    }
+
+    this.isVerifyingHrTotp.set(true);
+    this.hrTotpErrorMessage.set(null);
+
+    this.recordsService.verifyTotp(code, 'hr').subscribe({
+      next: (res) => {
+        this.isVerifyingHrTotp.set(false);
+        if (res.success) {
+          this.isHrUnlocked.set(true);
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            window.sessionStorage.setItem('mpi_hr_unlocked', 'true');
+          }
+          this.hrTotpCode.set('');
+          this.addToast('success', 'Access Granted', 'HR Performance Portal Unlocked.');
+          this.recordsService.refreshRecords().subscribe();
+        } else {
+          this.hrTotpErrorMessage.set(res.error || 'Invalid 6-digit HR code. Please verify against your Authenticator app.');
+          this.addToast('error', 'Authentication Failed', this.hrTotpErrorMessage()!);
+        }
+      },
+      error: (err: Error) => {
+        this.isVerifyingHrTotp.set(false);
+        this.hrTotpErrorMessage.set(err.message || 'Verification failed. Please try again.');
+      }
+    });
+  }
+
+  lockHrWorkspace(): void {
+    this.isHrUnlocked.set(false);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem('mpi_hr_unlocked');
+    }
+    this.hrTotpCode.set('');
+    this.hrTotpErrorMessage.set(null);
+    this.addToast('info', 'Workspace Locked', 'HR Review Workspace has been secured.');
+  }
+
+  toggleHrTotpSetupGuide(): void {
+    this.showHrTotpSetupGuide.update(v => !v);
+  }
+
+  copyHrTotpSecret(): void {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(this.hrTotpSecretKey).then(() => {
+        this.addToast('success', 'Copied!', 'HR Secret key copied to clipboard.');
+      }).catch(() => {
+        this.addToast('info', 'HR Secret Key', this.hrTotpSecretKey);
+      });
+    } else {
+      this.addToast('info', 'HR Secret Key', this.hrTotpSecretKey);
+    }
   }
 
   // --- TOTP Authentication Actions ---

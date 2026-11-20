@@ -188,4 +188,52 @@ describe('App', () => {
     const toast = app.toasts().find(t => t.title === 'Limit Reached');
     expect(toast).toBeDefined();
   });
+
+  it('should support switching to HR tab and have separate TOTP keys for TL and HR', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    // Separate TOTP keys
+    expect(app.totpSecretKey).toBe('MPSR2236TLREVKEY');
+    expect(app.hrTotpSecretKey).toBe('MPIHR22367REVKEY');
+    expect(app.totpSecretKey).not.toBe(app.hrTotpSecretKey);
+
+    // Switch to HR tab
+    app.setTab('hr');
+    expect(app.activeTab()).toBe('hr');
+
+    // Switch back to review tab
+    app.setTab('review');
+    expect(app.activeTab()).toBe('review');
+  });
+
+  it('should handle HR review selection, rating, and status correctly', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    const sampleRecord = {
+      employeeName: 'Alex Johnson',
+      monthYear: 'DECEMBER 2026',
+      points: '1. Task A\n2. Task B',
+      extraCurricularActivity: 'Tech talk',
+      teamLeadReview: 'Excellent work',
+      teamLeadRating: 9,
+      hrReview: '',
+      hrRating: null,
+      status: 'TL_Reviewed' as const
+    };
+
+    app.selectRecordForHrReview(sampleRecord);
+    expect(app.selectedHrRecord()).toBe(sampleRecord);
+
+    app.setHrRating(9);
+    expect(app.hrEditingRating()).toBe(9);
+
+    app.hrEditingComments.set('Great culture contribution');
+    expect(app.hrEditingComments()).toBe('Great culture contribution');
+
+    app.closeHrRecordReview();
+    expect(app.selectedHrRecord()).toBeNull();
+  });
 });
+

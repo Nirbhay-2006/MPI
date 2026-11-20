@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of, tap } from 'rxjs';
+import { Observable, catchError, from, map, of, tap } from 'rxjs';
 import { RecordsDatabase, SheetRecord } from '../models/mpi.models';
 
 const STORAGE_KEY = 'mpi_records_cache';
@@ -28,6 +28,10 @@ export class RecordsService {
         if (cached) {
           const parsed = JSON.parse(cached);
           if (parsed && typeof parsed === 'object') {
+            if (parsed['Alex Johnson']) {
+              delete parsed['Alex Johnson'];
+              this.saveToLocalCache(parsed);
+            }
             this.records.set(parsed);
           }
         }
@@ -48,37 +52,153 @@ export class RecordsService {
   }
 
   /**
-   * Verifies 6-digit TOTP code against serverless function (/api/records or /.netlify/functions/records)
+   * Browser WebCrypto RFC 6238 TOTP verification (supports local dev server & offline fallback)
    */
-  verifyTotp(code: string): Observable<{ success: boolean; message?: string; error?: string }> {
+  private async verifyTotpLocally(token: string, secretBase32: string): Promise<boolean> {
+    const clean = token.replace(/\D/g, '');
+    if (clean.length !== 6) return false;
+
+    const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = '';
+    for (let i = 0; i < secretBase32.length; i++) {
+      const val = base32chars.indexOf(secretBase32.charAt(i).toUpperCase());
+      if (val >= 0) bits += val.toString(2).padStart(5, '0');
+    }
+    const bytes: number[] = [];
+    for (let i = 0; i + 8 <= bits.length; i += 8) {
+      bytes.push(parseInt(bits.substr(i, 8), 2));
+    }
+    const keyBuf = new Uint8Array(bytes);
+
+    const subtle = (typeof window !== 'undefined' && window.crypto && window.crypto.subtle)
+      ? window.crypto.subtle
+      : (typeof globalThis !== 'undefined' && (globalThis as any).crypto ? (globalThis as any).crypto.subtle : null);
+
+    if (!subtle) {
+      return true;
+    }
+
+    try {
+      const cryptoKey = await subtle.importKey(
+        'raw',
+        keyBuf,
+        { name: 'HMAC', hash: 'SHA-1' },
+        false,
+        ['sign']
+      );
+
+      const now = Date.now();
+      // Allow +/- 60 seconds (up to 2 steps) to account for slight mobile phone clock drift
+      for (const offset of [-2, -1, 0, 1, 2]) {
+        const counter = Math.floor(now / 1000 / 30) + offset;
+        const countBuf = new ArrayBuffer(8);
+        const view = new DataView(countBuf);
+        view.setBigUint64(0, BigInt(counter));
+
+        const sig = new Uint8Array(await subtle.sign('HMAC', cryptoKey, countBuf));
+        const off = sig[sig.length - 1] & 0xf;
+        const code = ((sig[off] & 0x7f) << 24) | ((sig[off + 1] & 0xff) << 16) | ((sig[off + 2] & 0xff) << 8) | (sig[off + 3] & 0xff);
+        const codeStr = (code % 1000000).toString().padStart(6, '0');
+        if (codeStr === clean) return true;
+      }
+    } catch (e) {
+      console.warn('[RecordsService] WebCrypto TOTP verification error:', e);
+    }
+    return false;
+  }
+
+  /**
+   * Verifies 6-digit TOTP code against serverless function (/api/records or /.netlify/functions/records)
+   * with automatic fallback to WebCrypto TOTP verification for local development & offline use.
+   */
+  verifyTotp(code: string, role: 'tl' | 'hr' = 'tl'): Observable<{ success: boolean; message?: string; error?: string }> {
     const clean = code.trim().replace(/\D/g, '');
     if (clean.length !== 6) {
       return of({ success: false, error: 'Please enter a valid 6-digit code.' });
     }
 
+    const defaultSecret = role === 'hr' ? 'MPIHR22367REVKEY' : 'MPSR2236TLREVKEY';
+
+    const verifyLocally = (): Observable<{ success: boolean; message?: string; error?: string }> => {
+      return from(this.verifyTotpLocally(clean, defaultSecret)).pipe(
+        map(isValid => {
+          if (isValid) {
+            return {
+              success: true,
+              message: `${role === 'hr' ? 'HR' : 'Team Lead'} Verification successful.`
+            };
+          } else {
+            return {
+              success: false,
+              error: `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code. Please verify against your Authenticator app.`
+            };
+          }
+        }),
+        catchError(() => of({
+          success: false,
+          error: `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code. Please verify against your Authenticator app.`
+        }))
+      );
+    };
+
     if (typeof window === 'undefined' || !window.location || !window.location.origin || window.location.origin === 'null') {
-      return of({ success: true, message: 'Offline/Test Mode' });
+      return verifyLocally();
     }
+
+    // On localhost dev server without Netlify functions running, verify directly via WebCrypto
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
     const apiUrl = `${window.location.origin}/api/records`;
     const fnUrl = `${window.location.origin}/.netlify/functions/records`;
 
+    // Try backend serverless functions first
     return this.http.post<{ success: boolean; verified?: boolean; message?: string; error?: string }>(
       apiUrl,
-      { action: 'verify_totp', code: clean }
+      { action: 'verify_totp', code: clean, role }
     ).pipe(
-      map(res => ({ success: !!res.success, message: res.message, error: res.error })),
+      map(res => {
+        if (res && res.success) {
+          return { success: true, message: res.message };
+        }
+        return {
+          success: false,
+          error: res?.error || `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code.`
+        };
+      }),
       catchError(err => {
+        // If server deliberately responded with 401 JSON indicating invalid code
+        if (err && err.status === 401 && err.error && typeof err.error === 'object' && err.error.verified === false) {
+          return of({
+            success: false,
+            error: err.error.error || `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code.`
+          });
+        }
+
+        // Try direct Netlify function URL
         return this.http.post<{ success: boolean; verified?: boolean; message?: string; error?: string }>(
           fnUrl,
-          { action: 'verify_totp', code: clean }
+          { action: 'verify_totp', code: clean, role }
         ).pipe(
-          map(res => ({ success: !!res.success, message: res.message, error: res.error })),
+          map(res => {
+            if (res && res.success) {
+              return { success: true, message: res.message };
+            }
+            return {
+              success: false,
+              error: res?.error || `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code.`
+            };
+          }),
           catchError(err2 => {
-            const errorMsg = (err2.error && err2.error.error) 
-              ? err2.error.error 
-              : (err.error && err.error.error ? err.error.error : 'Invalid 6-digit code. Please verify against your Authenticator app.');
-            return of({ success: false, error: errorMsg });
+            // If server deliberately responded with 401 JSON indicating invalid code
+            if (err2 && err2.status === 401 && err2.error && typeof err2.error === 'object' && err2.error.verified === false) {
+              return of({
+                success: false,
+                error: err2.error.error || `Invalid 6-digit ${role === 'hr' ? 'HR' : 'Team Lead'} code.`
+              });
+            }
+
+            // Fallback to local WebCrypto verification (e.g. for localhost:4200 or offline)
+            return verifyLocally();
           })
         );
       })
@@ -123,6 +243,9 @@ export class RecordsService {
 
         // SMART MERGE: Local state takes precedence if it has a newer or equal updatedAt timestamp!
         const currentDb = { ...this.records() };
+        if (currentDb['Alex Johnson']) {
+          delete currentDb['Alex Johnson'];
+        }
 
         for (const emp of Object.keys(loaded)) {
           if (!currentDb[emp]) {

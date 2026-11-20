@@ -44,7 +44,23 @@
           </svg>
           <span class="nav-tab-text">Team Lead Review</span>
           @if (pendingReviewCount() > 0) {
-            <span class="nav-badge-pill" title="Pending reviews">{{ pendingReviewCount() }}</span>
+            <span class="nav-badge-pill" title="Pending Team Lead reviews">{{ pendingReviewCount() }}</span>
+          }
+        </button>
+
+        <button
+          type="button"
+          class="nav-tab-btn hr-nav-tab"
+          [class.active]="activeTab() === 'hr'"
+          (click)="setTab('hr')"
+          title="Go to HR Review Portal"
+        >
+          <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span class="nav-tab-text">HR Review</span>
+          @if (pendingHrReviewCount() > 0) {
+            <span class="nav-badge-pill hr-badge-pill" title="Pending HR reviews">{{ pendingHrReviewCount() }}</span>
           }
         </button>
       </nav>
@@ -58,7 +74,7 @@
             </svg>
             <span>Reset Form</span>
           </button>
-        } @else {
+        } @else if (activeTab() === 'review') {
           <div class="topbar-review-actions">
             @if (isReviewUnlocked()) {
               <button type="button" class="pill-btn-sm" (click)="refreshRecords()" title="Refresh records from records.json">
@@ -68,11 +84,29 @@
                 <span>Refresh JSON</span>
               </button>
 
-              <button type="button" class="pill-btn-sm lock-workspace-btn" (click)="lockReviewWorkspace()" title="Lock review workspace">
+              <button type="button" class="pill-btn-sm lock-workspace-btn" (click)="lockReviewWorkspace()" title="Lock Team Lead workspace">
                 <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <span>Lock</span>
+                <span>Lock TL</span>
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="topbar-review-actions">
+            @if (isHrUnlocked()) {
+              <button type="button" class="pill-btn-sm" (click)="refreshRecords()" title="Refresh records from records.json">
+                <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Refresh JSON</span>
+              </button>
+
+              <button type="button" class="pill-btn-sm lock-workspace-btn hr-lock-btn" (click)="lockHrWorkspace()" title="Lock HR workspace">
+                <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>Lock HR</span>
               </button>
             }
           </div>
@@ -314,39 +348,6 @@
               </button>
             </form>
 
-            <!-- First-time Setup Toggle -->
-            <div class="totp-setup-toggle">
-              <button
-                type="button"
-                class="totp-setup-link"
-                (click)="toggleTotpSetupGuide()"
-              >
-                <span>🔑 {{ showTotpSetupGuide() ? 'Hide Setup Details' : 'First time? View Authenticator Setup Key' }}</span>
-              </button>
-            </div>
-
-            @if (showTotpSetupGuide()) {
-              <div class="totp-setup-box animate-fade-in">
-                <h3 class="setup-box-title">Authenticator App Setup</h3>
-                <p class="setup-box-desc">Add this key to Google Authenticator or Microsoft Authenticator on your mobile device:</p>
-
-                <div class="secret-key-badge-row">
-                  <code class="secret-key-display">{{ totpSecretKey }}</code>
-                  <button type="button" class="copy-secret-btn" (click)="copyTotpSecret()" title="Copy setup key">
-                    Copy Key
-                  </button>
-                </div>
-
-                <ol class="setup-steps-list">
-                  <li>Open <strong>Google Authenticator</strong> (or Microsoft Authenticator).</li>
-                  <li>Tap <strong>+</strong> and select <strong>Enter a setup key</strong>.</li>
-                  <li>Account name: <code>MPI Sheet - Team Lead</code></li>
-                  <li>Your key: <code>{{ totpSecretKey }}</code></li>
-                  <li>Type of key: <strong>Time-based</strong> (default).</li>
-                  <li>Enter the 6-digit code shown in the app above to unlock.</li>
-                </ol>
-              </div>
-            }
           </div>
         </div>
       } @else {
@@ -409,8 +410,9 @@
               title="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
-              <option value="Pending">Pending Review</option>
-              <option value="Reviewed">Reviewed</option>
+              <option value="Pending">Pending TL Review</option>
+              <option value="TL_Reviewed">TL Reviewed</option>
+              <option value="Reviewed">Fully Reviewed</option>
             </select>
           </div>
         </div>
@@ -448,8 +450,10 @@
                     <td>
                       @if (rec.status === 'Reviewed') {
                         <span class="badge-status badge-reviewed">Reviewed</span>
+                      } @else if (rec.status === 'TL_Reviewed') {
+                        <span class="badge-status badge-tl-reviewed">TL Reviewed</span>
                       } @else {
-                        <span class="badge-status badge-pending">Pending Review</span>
+                        <span class="badge-status badge-pending">Pending TL</span>
                       }
                     </td>
                     <td>
@@ -566,11 +570,40 @@
                     [ngModel]="reviewEditingStatus()"
                     (ngModelChange)="reviewEditingStatus.set($event)"
                   >
-                    <option value="Reviewed">Reviewed & Approved</option>
-                    <option value="Pending">Pending Review</option>
+                    <option value="TL_Reviewed">TL Reviewed (Submit to HR)</option>
+                    <option value="Reviewed">Fully Reviewed & Approved</option>
+                    <option value="Pending">Keep as Pending</option>
                   </select>
                 </div>
               </div>
+
+              <!-- 4. HR Review Section (Inspection for Team Lead) -->
+              @if (selectedRecord()?.hrReview || (selectedRecord()?.hrRating !== null && selectedRecord()?.hrRating !== undefined)) {
+                <div class="review-section-box hr-inspection-box">
+                  <div class="box-header-title">
+                    <span>4. HR Department Review (Completed)</span>
+                    <span class="badge-role hr-badge-role">HR</span>
+                  </div>
+                  <div class="tl-inspection-content">
+                    <div class="tl-rating-display">
+                      <span class="label">HR Rating:</span>
+                      <span class="rating-badge-pill hr-rating-pill">★ {{ selectedRecord()?.hrRating }}/10</span>
+                    </div>
+                    <div class="tl-comments-display">
+                      <span class="label">HR Remarks:</span>
+                      <p class="comments-text">{{ selectedRecord()?.hrReview }}</p>
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="review-section-box hr-pending-box">
+                  <div class="box-header-title">
+                    <span>4. HR Department Review</span>
+                    <span class="unrated-pill">Awaiting HR Review</span>
+                  </div>
+                  <p class="section-hint-text">Once Team Lead review is submitted, HR can access and evaluate this sheet on the /hr portal.</p>
+                </div>
+              }
             </div>
 
             <div class="drawer-footer">
@@ -588,7 +621,7 @@
                   <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                   </svg>
-                  <span>Save Review to JSON</span>
+                  <span>Save & Submit to HR</span>
                 }
               </button>
 
@@ -620,6 +653,375 @@
           </div>
         </div>
       }
+      }
+    }
+
+    <!-- VIEW 3: HR Review Workspace (/hr) -->
+    @if (activeTab() === 'hr') {
+      @if (!isHrUnlocked()) {
+        <!-- HR TOTP Gatekeeper Security Screen -->
+        <div class="totp-gatekeeper-wrapper animate-fade-in">
+          <div class="totp-gatekeeper-card hr-gatekeeper-card">
+            <!-- Glowing Security Shield Icon (HR Violet Theme) -->
+            <div class="totp-icon-glow hr-icon-glow">
+              <svg class="totp-shield-svg hr-shield-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+
+            <h1 class="totp-title hr-totp-title">HR Portal Verification</h1>
+            <p class="totp-subtitle">This workspace is restricted to HR personnel. Enter the 6-digit one-time code from your <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong> app.</p>
+
+            <form class="totp-form" (submit)="$event.preventDefault(); onVerifyHrTotp()">
+              <div class="totp-input-container">
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  maxlength="6"
+                  class="totp-input hr-totp-input"
+                  placeholder="000000"
+                  [ngModel]="hrTotpCode()"
+                  (ngModelChange)="hrTotpCode.set($event)"
+                  name="hrTotpCode"
+                  autocomplete="one-time-code"
+                  autofocus
+                />
+              </div>
+
+              @if (hrTotpErrorMessage()) {
+                <div class="totp-error-banner animate-fade-in">
+                  <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{{ hrTotpErrorMessage() }}</span>
+                </div>
+              }
+
+              <button
+                type="submit"
+                class="pill-btn totp-verify-btn hr-verify-btn"
+                [disabled]="isVerifyingHrTotp() || hrTotpCode().trim().length < 6"
+              >
+                @if (isVerifyingHrTotp()) {
+                  <span class="spinner"></span>
+                  <span>Verifying Code...</span>
+                } @else {
+                  <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  </svg>
+                  <span>Verify & Unlock HR Portal</span>
+                }
+              </button>
+            </form>
+
+          </div>
+        </div>
+      } @else {
+        <div class="mpi-card review-workspace-card hr-workspace-card">
+          <div class="card-header hr-card-header">
+            <div>
+              <h1 class="card-title">HR Performance Review Portal</h1>
+              <p class="card-subtitle">Review employee submissions and Team Lead evaluations, assign HR ratings, and finalize monthly MPI inspection records</p>
+            </div>
+          </div>
+
+          <!-- Summary Stats Cards -->
+          <div class="review-stats-grid">
+            <div class="stat-card">
+              <div class="stat-num">{{ recordsList().length }}</div>
+              <div class="stat-label">Total Submissions</div>
+            </div>
+            <div class="stat-card stat-pending hr-stat-pending">
+              <div class="stat-num">{{ pendingHrReviewCount() }}</div>
+              <div class="stat-label">Awaiting HR Review</div>
+            </div>
+            <div class="stat-card stat-reviewed">
+              <div class="stat-num">{{ reviewedCount() }}</div>
+              <div class="stat-label">Fully Finalized</div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Bar -->
+          <div class="review-filter-bar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                class="filter-search-input"
+                placeholder="Search by employee name..."
+                [ngModel]="hrSearchTerm()"
+                (ngModelChange)="hrSearchTerm.set($event)"
+              />
+            </div>
+
+            <div class="filter-controls">
+              <select
+                class="filter-select"
+                [ngModel]="hrMonthFilter()"
+                (ngModelChange)="hrMonthFilter.set($event)"
+                title="Filter by Month"
+              >
+                <option value="ALL">All Months</option>
+                @for (m of availableMonths(); track m) {
+                  <option [value]="m">{{ m }}</option>
+                }
+              </select>
+
+              <select
+                class="filter-select"
+                [ngModel]="hrStatusFilter()"
+                (ngModelChange)="hrStatusFilter.set($event)"
+                title="Filter by Status"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="TL_Reviewed">Awaiting HR (TL Done)</option>
+                <option value="Pending">Pending TL Review</option>
+                <option value="Reviewed">Fully Reviewed</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Master Records Table -->
+          @if (filteredHrRecords().length === 0) {
+            <div class="empty-records-state">
+              <div class="empty-state-icon">📋</div>
+              <div class="empty-state-title">No submissions found</div>
+              <div class="empty-state-desc">No employee records match the filter criteria.</div>
+            </div>
+          } @else {
+            <div class="records-table-container">
+              <table class="records-table">
+                <thead>
+                  <tr>
+                    <th>Employee Name</th>
+                    <th>Month & Year</th>
+                    <th>TL Rating</th>
+                    <th>HR Rating</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (rec of filteredHrRecords(); track (rec.employeeName + '-' + rec.monthYear)) {
+                    <tr [class.selected-row]="selectedHrRecord()?.employeeName === rec.employeeName && selectedHrRecord()?.monthYear === rec.monthYear">
+                      <td class="emp-name-cell">
+                        <span class="emp-avatar hr-avatar">{{ rec.employeeName.charAt(0).toUpperCase() }}</span>
+                        <span class="emp-name-text">{{ rec.employeeName }}</span>
+                      </td>
+                      <td>
+                        <span class="period-badge">{{ rec.monthYear }}</span>
+                      </td>
+                      <td>
+                        @if (rec.teamLeadRating !== null && rec.teamLeadRating !== undefined) {
+                          <span class="rating-badge-pill">★ {{ rec.teamLeadRating }}/10</span>
+                        } @else {
+                          <span class="unrated-pill">Pending TL</span>
+                        }
+                      </td>
+                      <td>
+                        @if (rec.hrRating !== null && rec.hrRating !== undefined) {
+                          <span class="rating-badge-pill hr-rating-pill">★ {{ rec.hrRating }}/10</span>
+                        } @else {
+                          <span class="unrated-pill">Unrated</span>
+                        }
+                      </td>
+                      <td>
+                        @if (rec.status === 'Reviewed') {
+                          <span class="badge-status badge-reviewed">Reviewed</span>
+                        } @else if (rec.status === 'TL_Reviewed') {
+                          <span class="badge-status badge-tl-reviewed">Awaiting HR</span>
+                        } @else {
+                          <span class="badge-status badge-pending">Pending TL</span>
+                        }
+                      </td>
+                      <td class="timestamp-cell">
+                        {{ rec.updatedAt ? (rec.updatedAt | date:'mediumDate') : '-' }}
+                      </td>
+                      <td class="text-right action-cell">
+                        <button
+                          type="button"
+                          class="review-action-btn hr-review-action-btn"
+                          (click)="selectRecordForHrReview(rec)"
+                          title="Review and rate this sheet as HR"
+                        >
+                          <span>Review as HR</span>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+
+        <!-- HR Review & Rating Drawer / Modal when a record is selected -->
+        @if (selectedHrRecord()) {
+          <div class="review-modal-backdrop animate-fade-in" (click)="closeHrRecordReview()">
+            <div class="review-drawer-dialog hr-drawer-dialog" (click)="$event.stopPropagation()">
+              <div class="drawer-header hr-drawer-header">
+                <div class="drawer-header-info">
+                  <span class="drawer-title">HR Review: {{ selectedHrRecord()?.employeeName }}</span>
+                  <span class="period-badge">{{ selectedHrRecord()?.monthYear }}</span>
+                </div>
+                <button type="button" class="drawer-close-btn" (click)="closeHrRecordReview()" title="Close review">
+                  ✕
+                </button>
+              </div>
+
+              <div class="drawer-body">
+                <!-- 1. Submitted Points (Read-only Inspection) -->
+                <div class="review-section-box">
+                  <div class="box-header-title">1. Employee Submitted Points</div>
+                  <div class="submitted-points-content">
+                    @for (pt of (selectedHrRecord()?.points || '').split('\n'); track $index) {
+                      @if (pt.trim()) {
+                        <div class="submitted-pt-row">
+                          <span class="bullet">•</span>
+                          <span>{{ cleanPointText(pt) }}</span>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+
+                <!-- 2. Extraordinary Contributions -->
+                @if (selectedHrRecord()?.extraCurricularActivity?.trim()) {
+                  <div class="review-section-box">
+                    <div class="box-header-title">2. Extraordinary Contributions</div>
+                    <div class="submitted-extra-content">
+                      {{ selectedHrRecord()?.extraCurricularActivity }}
+                    </div>
+                  </div>
+                }
+
+                <!-- 3. Team Lead Evaluation (Read-only Inspection for HR) -->
+                <div class="review-section-box lead-inspection-box">
+                  <div class="box-header-title">
+                    <span>3. Team Lead Evaluation</span>
+                    <span class="badge-role">Team Lead</span>
+                  </div>
+
+                  <div class="tl-inspection-content">
+                    <div class="tl-rating-display">
+                      <span class="label">Team Lead Rating:</span>
+                      @if (selectedHrRecord()?.teamLeadRating !== null && selectedHrRecord()?.teamLeadRating !== undefined) {
+                        <span class="rating-badge-pill">★ {{ selectedHrRecord()?.teamLeadRating }}/10</span>
+                      } @else {
+                        <span class="unrated-pill">Not rated yet</span>
+                      }
+                    </div>
+                    <div class="tl-comments-display">
+                      <span class="label">Team Lead Comments:</span>
+                      <p class="comments-text">{{ selectedHrRecord()?.teamLeadReview || 'No review comments provided by Team Lead.' }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 4. HR Review & Performance Rating (EDITABLE) -->
+                <div class="review-section-box hr-review-edit-box">
+                  <div class="box-header-title">
+                    <span>4. HR Department Review & Performance Rating</span>
+                    <span class="badge-role hr-badge-role">HR</span>
+                  </div>
+
+                  <!-- Rating Selector -->
+                  <div class="rating-selector-group">
+                    <label class="rating-label">HR Rating (/10):</label>
+                    <div class="score-pills hr-score-pills">
+                      @for (score of [1,2,3,4,5,6,7,8,9,10]; track score) {
+                        <button
+                          type="button"
+                          class="score-pill"
+                          [class.active]="hrEditingRating() === score"
+                          (click)="setHrRating(score)"
+                        >
+                          {{ score }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Review Comments -->
+                  <div class="form-group">
+                    <label class="form-label" for="hrComments">HR Evaluation Comments / Notes:</label>
+                    <textarea
+                      id="hrComments"
+                      class="custom-textarea"
+                      rows="4"
+                      [ngModel]="hrEditingComments()"
+                      (ngModelChange)="hrEditingComments.set($event)"
+                      placeholder="Enter HR remarks, conduct notes, and overall evaluation..."
+                    ></textarea>
+                  </div>
+
+                  <!-- Status Toggle -->
+                  <div class="form-group status-toggle-row">
+                    <label class="form-label" for="hrStatusSelect">Approval Status:</label>
+                    <select
+                      id="hrStatusSelect"
+                      class="filter-select"
+                      [ngModel]="hrEditingStatus()"
+                      (ngModelChange)="hrEditingStatus.set($event)"
+                    >
+                      <option value="Reviewed">Reviewed & Approved (Finalized)</option>
+                      <option value="TL_Reviewed">Keep as TL Reviewed</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="drawer-footer">
+                <button
+                  type="button"
+                  class="pill-btn save-review-btn hr-save-review-btn"
+                  [disabled]="isSavingHrReview()"
+                  (click)="saveHrReview()"
+                  title="Save HR review changes to records.json"
+                >
+                  @if (isSavingHrReview()) {
+                    <span class="spinner"></span>
+                    <span>Saving to JSON...</span>
+                  } @else {
+                    <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <span>Save HR Review to JSON</span>
+                  }
+                </button>
+
+                <button
+                  type="button"
+                  class="pill-btn preview-record-btn"
+                  (click)="previewRecordPdf(selectedHrRecord()!)"
+                  title="Preview reviewed PDF"
+                >
+                  <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span>Preview PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="pill-btn download-record-btn highlight-btn"
+                  (click)="downloadRecordPdf(selectedHrRecord()!)"
+                  title="Download finalized official PDF"
+                >
+                  <svg class="btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        }
       }
     }
   </main>

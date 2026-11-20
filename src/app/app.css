@@ -2364,3 +2364,207 @@ body.modal-open {
   font-size: 11px;
 }
 
+/* ==========================================================================
+   HR Portal Styles & Status Additions
+   ========================================================================== */
+
+.badge-tl-reviewed {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.hr-nav-tab:hover {
+  color: #c084fc !important;
+}
+
+.hr-nav-tab.active {
+  background: #2e1065 !important;
+  color: #d8b4fe !important;
+  border-color: #7e22ce !important;
+}
+
+.hr-badge-pill {
+  background: #7e22ce !important;
+  color: #f5f3ff !important;
+}
+
+.hr-gatekeeper-card {
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.7), 0 0 25px rgba(168, 85, 247, 0.12);
+}
+
+.hr-icon-glow {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(192, 132, 252, 0.08));
+  border-color: rgba(168, 85, 247, 0.35);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+.hr-shield-svg {
+  color: #c084fc;
+}
+
+.hr-totp-title {
+  color: #f3e8ff;
+}
+
+.hr-totp-input:focus {
+  border-color: #9333ea;
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.25);
+}
+
+.hr-verify-btn {
+  background: #7e22ce !important;
+  border-color: #9333ea !important;
+}
+
+.hr-verify-btn:hover:not(:disabled) {
+  background: #9333ea !important;
+  box-shadow: 0 4px 14px rgba(147, 51, 234, 0.4) !important;
+}
+
+.hr-setup-link {
+  color: #c084fc;
+}
+
+.hr-setup-link:hover {
+  color: #e9d5ff;
+}
+
+.hr-secret-key-display {
+  color: #c084fc;
+}
+
+.hr-copy-btn:hover {
+  background: #7e22ce;
+  border-color: #9333ea;
+}
+
+.hr-lock-btn {
+  background: #231238 !important;
+  border-color: #6b21a8 !important;
+  color: #d8b4fe !important;
+}
+
+.hr-lock-btn:hover {
+  background: #6b21a8 !important;
+  color: #ffffff !important;
+}
+
+.hr-stat-pending .stat-num {
+  color: #c084fc;
+}
+
+.hr-avatar {
+  background: rgba(147, 51, 234, 0.2);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.hr-rating-pill {
+  background: rgba(147, 51, 234, 0.15) !important;
+  color: #d8b4fe !important;
+  border: 1px solid rgba(168, 85, 247, 0.3) !important;
+}
+
+.hr-review-action-btn {
+  background: #2e1065;
+  border: 1px solid #7e22ce;
+  color: #d8b4fe;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hr-review-action-btn:hover {
+  background: #7e22ce;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(126, 34, 206, 0.35);
+}
+
+.hr-badge-role {
+  background: rgba(147, 51, 234, 0.2);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.hr-score-pills .score-pill.active {
+  background: #7e22ce;
+  border-color: #9333ea;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(147, 51, 234, 0.4);
+}
+
+.hr-save-review-btn {
+  background: #7e22ce !important;
+  border-color: #9333ea !important;
+}
+
+.hr-save-review-btn:hover:not(:disabled) {
+  background: #9333ea !important;
+  box-shadow: 0 4px 14px rgba(147, 51, 234, 0.4) !important;
+}
+
+.lead-inspection-box {
+  background: #0f1523;
+  border-color: #1e293b;
+}
+
+.hr-inspection-box {
+  background: #171124;
+  border-color: #3b1d5c;
+}
+
+.tl-inspection-content {
+  padding: 10px 14px;
+}
+
+.tl-rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.tl-rating-display .label {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.tl-comments-display .label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.tl-comments-display .comments-text {
+  font-size: 13px;
+  color: #cbd5e1;
+  background: #0b0e17;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #1e2738;
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.hr-pending-box {
+  background: #12101c;
+  border: 1px dashed #4a2870;
+}
+
+.section-hint-text {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 8px 14px 12px 14px;
+  line-height: 1.5;
+}
+
+
