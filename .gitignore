@@ -39,8 +39,9 @@ testem.log
 /typings
 __screenshots__/
 
-# Vercel
+# Vercel & Netlify
 .vercel
+.netlify
 
 # System files
 .DS_Store

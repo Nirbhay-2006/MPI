@@ -96,3 +96,41 @@ The project is fully configured for deployment on **Vercel** with automatic SPA 
    - `TOTP_SECRET`: Your custom TOTP secret key for Team Lead authentication (defaults to `MPSR2236TLREVKEY` if omitted).
    - *(Optional)* Vercel KV store (`KV_REST_API_URL` & `KV_REST_API_TOKEN`) for persistent cloud storage.
 6. Click **Deploy**.
+
+---
+
+## 🌐 Deploying to Netlify
+
+The project includes pre-configured `netlify.toml` and `public/_redirects` for full SPA routing, edge caching, and serverless function support for the `/api/records` endpoint and TOTP authentication.
+
+### Method 1: Deploy via Netlify CLI
+
+1. **Install Netlify CLI** (if not already installed):
+   ```bash
+   npm i -g netlify-cli
+   ```
+
+2. **Deploy to Preview**:
+   ```bash
+   netlify deploy
+   ```
+
+3. **Deploy to Production**:
+   ```bash
+   netlify deploy --prod
+   ```
+
+### Method 2: Deploy via Netlify Dashboard (Git Continuous Deployment)
+
+1. Push your repository to **GitHub** / **GitLab** / **Bitbucket**.
+2. Go to [app.netlify.com](https://app.netlify.com) and click **"Add new site"** → **"Import an existing project"**.
+3. Select your repository.
+4. Netlify will automatically detect configuration from `netlify.toml`:
+   - **Base directory**: (leave blank / root)
+   - **Build command**: `npm run build`
+   - **Publish directory**: `dist/MPI_Frontend/browser`
+   - **Functions directory**: `netlify/functions`
+5. *(Optional)* In **Site configuration** → **Environment variables**, add:
+   - `TOTP_SECRET`: Your custom TOTP secret key for Team Lead authentication (defaults to `MPSR2236TLREVKEY` if omitted).
+6. Click **Deploy site**.
+
